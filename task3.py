@@ -1,50 +1,46 @@
-import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import linear_kernel
+import cv2
+import face_recognition
 
-# Sample book data
-data = {
-    'Title': ['Book 1', 'Book 2', 'Book 3', 'Book 4'],
-    'Author': ['Author A', 'Author B', 'Author A', 'Author C'],
-    'Genre': ['Fiction', 'Mystery', 'Fiction', 'Non-Fiction'],
-    'Description': [
-        'A gripping novel about...',
-        'A thrilling mystery set in...',
-        'An emotional journey through...',
-        'A non-fiction book on...'
-    ]
-}
+# Load the pre-trained Haar cascade for face detection
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
-df = pd.DataFrame(data)
+# Load a sample image and convert it to RGB format (required by face_recognition)
+image_path = 'path_to_image.jpg'
+image = cv2.imread(image_path)
+rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-# Create a TF-IDF vectorizer to convert descriptions into numerical form
-tfidf_vectorizer = TfidfVectorizer(stop_words='english')
-tfidf_matrix = tfidf_vectorizer.fit_transform(df['Description'])
+# Detect faces in the image using Haar cascade
+faces = face_cascade.detectMultiScale(rgb_image, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
-# Calculate cosine similarity between descriptions
-cosine_sim = linear_kernel(tfidf_matrix, tfidf_matrix)
+# Load pre-trained face recognition models
+known_face_encodings = []
+known_face_names = []
 
-# Define a function to get book recommendations based on user preferences
-def get_recommendations(title, cosine_sim=cosine_sim):
-    # Get the index of the book that matches the title
-    idx = df[df['Title'] == title].index[0]
+# Define known faces and their names
+known_face_encodings.append(face_recognition.face_encodings(rgb_image)[0])
+known_face_names.append("Person 1")
 
-    # Get the pairwsie similarity scores of all books with that book
-    sim_scores = list(enumerate(cosine_sim[idx]))
+# Loop through the detected faces
+for (x, y, w, h) in faces:
+    # Crop the face region from the image
+    face_image = rgb_image[y:y+h, x:x+w]
 
-    # Sort the books based on the similarity scores
-    sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
+    # Recognize the face
+    face_encodings = face_recognition.face_encodings(face_image)
+    if len(face_encodings) > 0:
+        match = face_recognition.compare_faces(known_face_encodings, face_encodings[0])
+        name = "Unknown"
 
-    # Get the scores of the top 5 most similar books
-    sim_scores = sim_scores[1:6]
+        if any(match):
+            matched_index = match.index(True)
+            name = known_face_names[matched_index]
 
-    # Get the book indices
-    book_indices = [i[0] for i in sim_scores]
+        # Draw a rectangle and label on the image
+        cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        font = cv2.FONT_HERSHEY_DUPLEX
+        cv2.putText(image, name, (x + 6, y - 6), font, 0.5, (255, 255, 255), 1)
 
-    # Return the top 5 most similar books
-    return df['Title'].iloc[book_indices]
-
-# Example: Recommend books similar to 'Book 1'
-recommended_books = get_recommendations('Book 1')
-print("Recommended Books for 'Book 1':")
-print(recommended_books)
+# Display the image with faces detected and recognized
+cv2.imshow('Face Detection and Recognition', image)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
