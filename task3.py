@@ -1,46 +1,41 @@
-import cv2
-import face_recognition
+import pandas as pd
 
-# Load the pre-trained Haar cascade for face detection
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+# Sample user-item ratings dataset
+data = {
+    'User': ['User1', 'User2', 'User3', 'User4', 'User5'],
+    'Item1': [5, 4, 0, 0, 3],
+    'Item2': [0, 5, 4, 3, 0],
+    'Item3': [2, 0, 5, 4, 0],
+    'Item4': [0, 0, 0, 0, 5],
+    'Item5': [4, 0, 3, 5, 4]
+}
 
-# Load a sample image and convert it to RGB format (required by face_recognition)
-image_path = 'path_to_image.jpg'
-image = cv2.imread(image_path)
-rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+# Create a DataFrame from the dataset
+df = pd.DataFrame(data)
 
-# Detect faces in the image using Haar cascade
-faces = face_cascade.detectMultiScale(rgb_image, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+# Function to get recommendations for a user
+def get_recommendations(user, df):
+    # Select the user's ratings
+    user_ratings = df[df['User'] == user].iloc[:, 1:]
 
-# Load pre-trained face recognition models
-known_face_encodings = []
-known_face_names = []
+    # Calculate the mean ratings of other users
+    mean_ratings = df.drop(user, axis=0).mean()
 
-# Define known faces and their names
-known_face_encodings.append(face_recognition.face_encodings(rgb_image)[0])
-known_face_names.append("Person 1")
+    # Calculate the weighted average of item ratings based on user's ratings and mean ratings
+    user_recommendations = (user_ratings * mean_ratings).sum() / mean_ratings.sum()
 
-# Loop through the detected faces
-for (x, y, w, h) in faces:
-    # Crop the face region from the image
-    face_image = rgb_image[y:y+h, x:x+w]
+    # Sort recommendations in descending order
+    user_recommendations = user_recommendations.sort_values(ascending=False)
 
-    # Recognize the face
-    face_encodings = face_recognition.face_encodings(face_image)
-    if len(face_encodings) > 0:
-        match = face_recognition.compare_faces(known_face_encodings, face_encodings[0])
-        name = "Unknown"
+    # Filter out items the user has already rated
+    user_recommendations = user_recommendations[user_ratings.iloc[0] == 0]
 
-        if any(match):
-            matched_index = match.index(True)
-            name = known_face_names[matched_index]
+    return user_recommendations
 
-        # Draw a rectangle and label on the image
-        cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        font = cv2.FONT_HERSHEY_DUPLEX
-        cv2.putText(image, name, (x + 6, y - 6), font, 0.5, (255, 255, 255), 1)
+# Get recommendations for a specific user (e.g., 'User1')
+user = 'User1'
+recommendations = get_recommendations(user, df)
 
-# Display the image with faces detected and recognized
-cv2.imshow('Face Detection and Recognition', image)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+# Display recommended items for the user
+print(f'Recommended items for {user}:')
+print(recommendations)
