@@ -13,11 +13,11 @@ def chatbot_response(user_input):
     elif "what is your name" in user_input:
         return "I'm a simple chatbot. im happy to help you"
 
+    elif "what is codsoft" in user_input:
+        return "It is a excellent platform to get internship"
+
     elif "how can i learn to code" in user_input:
         return "search how to code on google"
-
-    elif "where can i get internship" in user_input:
-        return "follow codsoft on linkedin."
 
     elif "goodbye" in user_input or "bye" in user_input:
         return "Goodbye! have a great day."
